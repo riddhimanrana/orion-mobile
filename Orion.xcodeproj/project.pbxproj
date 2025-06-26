@@ -7,6 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		8423D9072E0A696E00463407 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = 8423D9062E0A696E00463407 /* MLX */; };
+		8423D9092E0A696E00463407 /* MLXFast in Frameworks */ = {isa = PBXBuildFile; productRef = 8423D9082E0A696E00463407 /* MLXFast */; };
+		8423D90B2E0A696E00463407 /* MLXNN in Frameworks */ = {isa = PBXBuildFile; productRef = 8423D90A2E0A696E00463407 /* MLXNN */; };
+		8423D90D2E0A696E00463407 /* MLXRandom in Frameworks */ = {isa = PBXBuildFile; productRef = 8423D90C2E0A696E00463407 /* MLXRandom */; };
+		8423D9102E0A69A300463407 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 8423D90F2E0A69A300463407 /* MLXLMCommon */; };
+		8423D9122E0A69A300463407 /* MLXVLM in Frameworks */ = {isa = PBXBuildFile; productRef = 8423D9112E0A69A300463407 /* MLXVLM */; };
+		8423D9152E0A69B500463407 /* Transformers in Frameworks */ = {isa = PBXBuildFile; productRef = 8423D9142E0A69B500463407 /* Transformers */; };
 		844535F32DFAB1CC00F0BC04 /* Starscream in Frameworks */ = {isa = PBXBuildFile; productRef = 844535F22DFAB1CC00F0BC04 /* Starscream */; };
 		84FEC2302E00E4E400362F8A /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 84FEC22F2E00E4E400362F8A /* .gitignore */; };
 		84FEC2332E00E55000362F8A /* README.md in Sources */ = {isa = PBXBuildFile; fileRef = 84FEC2312E00E54D00362F8A /* README.md */; };
@@ -15,15 +22,16 @@
 
 /* Begin PBXFileReference section */
 		84270E592DFAAB5D00AF2664 /* Orion.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Orion.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8440DA062E0CC6CC0012B849 /* Orion.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Orion.entitlements; sourceTree = "<group>"; };
 		84FEC22F2E00E4E400362F8A /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		84FEC2312E00E54D00362F8A /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		84FEC2342E00E56900362F8A /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		84270E5B2DFAAB5D00AF2664 /* Orion */ = {
+		84270E5B2DFAAB5D00AF2664 /* Orion App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Orion;
+			path = "Orion App";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -33,6 +41,13 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8423D9092E0A696E00463407 /* MLXFast in Frameworks */,
+				8423D9072E0A696E00463407 /* MLX in Frameworks */,
+				8423D9152E0A69B500463407 /* Transformers in Frameworks */,
+				8423D90B2E0A696E00463407 /* MLXNN in Frameworks */,
+				8423D9122E0A69A300463407 /* MLXVLM in Frameworks */,
+				8423D90D2E0A696E00463407 /* MLXRandom in Frameworks */,
+				8423D9102E0A69A300463407 /* MLXLMCommon in Frameworks */,
 				844535F32DFAB1CC00F0BC04 /* Starscream in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -45,8 +60,9 @@
 			children = (
 				84FEC2312E00E54D00362F8A /* README.md */,
 				84FEC2342E00E56900362F8A /* LICENSE */,
+				8440DA062E0CC6CC0012B849 /* Orion.entitlements */,
 				84FEC22F2E00E4E400362F8A /* .gitignore */,
-				84270E5B2DFAAB5D00AF2664 /* Orion */,
+				84270E5B2DFAAB5D00AF2664 /* Orion App */,
 				84270E5A2DFAAB5D00AF2664 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -75,11 +91,18 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				84270E5B2DFAAB5D00AF2664 /* Orion */,
+				84270E5B2DFAAB5D00AF2664 /* Orion App */,
 			);
 			name = Orion;
 			packageProductDependencies = (
 				844535F22DFAB1CC00F0BC04 /* Starscream */,
+				8423D9062E0A696E00463407 /* MLX */,
+				8423D9082E0A696E00463407 /* MLXFast */,
+				8423D90A2E0A696E00463407 /* MLXNN */,
+				8423D90C2E0A696E00463407 /* MLXRandom */,
+				8423D90F2E0A69A300463407 /* MLXLMCommon */,
+				8423D9112E0A69A300463407 /* MLXVLM */,
+				8423D9142E0A69B500463407 /* Transformers */,
 			);
 			productName = Orion;
 			productReference = 84270E592DFAAB5D00AF2664 /* Orion.app */;
@@ -111,6 +134,9 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				844535F02DFAB12700F0BC04 /* XCRemoteSwiftPackageReference "Starscream" */,
+				8423D9052E0A696E00463407 /* XCRemoteSwiftPackageReference "mlx-swift" */,
+				8423D90E2E0A69A300463407 /* XCRemoteSwiftPackageReference "mlx-swift-examples" */,
+				8423D9132E0A69B500463407 /* XCRemoteSwiftPackageReference "swift-transformers" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 84270E5A2DFAAB5D00AF2664 /* Products */;
@@ -270,17 +296,21 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Orion.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = TB6CA879K5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Orion;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Orion needs access to your camera to provide real-time object detection and scene analysis.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UIStatusBarHidden = NO;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -302,17 +332,21 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Orion.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = TB6CA879K5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Orion;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Orion needs access to your camera to provide real-time object detection and scene analysis.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UIStatusBarHidden = NO;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -353,6 +387,30 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		8423D9052E0A696E00463407 /* XCRemoteSwiftPackageReference "mlx-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.25.4;
+			};
+		};
+		8423D90E2E0A69A300463407 /* XCRemoteSwiftPackageReference "mlx-swift-examples" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift-examples";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.25.4;
+			};
+		};
+		8423D9132E0A69B500463407 /* XCRemoteSwiftPackageReference "swift-transformers" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/huggingface/swift-transformers";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.1.21;
+			};
+		};
 		844535F02DFAB12700F0BC04 /* XCRemoteSwiftPackageReference "Starscream" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/daltoniam/Starscream";
@@ -364,6 +422,41 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		8423D9062E0A696E00463407 /* MLX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8423D9052E0A696E00463407 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLX;
+		};
+		8423D9082E0A696E00463407 /* MLXFast */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8423D9052E0A696E00463407 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLXFast;
+		};
+		8423D90A2E0A696E00463407 /* MLXNN */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8423D9052E0A696E00463407 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLXNN;
+		};
+		8423D90C2E0A696E00463407 /* MLXRandom */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8423D9052E0A696E00463407 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLXRandom;
+		};
+		8423D90F2E0A69A300463407 /* MLXLMCommon */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8423D90E2E0A69A300463407 /* XCRemoteSwiftPackageReference "mlx-swift-examples" */;
+			productName = MLXLMCommon;
+		};
+		8423D9112E0A69A300463407 /* MLXVLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8423D90E2E0A69A300463407 /* XCRemoteSwiftPackageReference "mlx-swift-examples" */;
+			productName = MLXVLM;
+		};
+		8423D9142E0A69B500463407 /* Transformers */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8423D9132E0A69B500463407 /* XCRemoteSwiftPackageReference "swift-transformers" */;
+			productName = Transformers;
+		};
 		844535F22DFAB1CC00F0BC04 /* Starscream */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 844535F02DFAB12700F0BC04 /* XCRemoteSwiftPackageReference "Starscream" */;

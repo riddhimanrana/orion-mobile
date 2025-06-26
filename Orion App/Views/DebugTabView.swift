@@ -3,16 +3,8 @@
 //  Orion
 //
 //  Created by Riddhiman Rana on 6/16/25.
-//
-
-
-//
-//  DebugTabView.swift
-//  Orion
-//
-//  Created by Roo on 6/16/25.
 //  Debug tab with server data, WebSocket status, and debug information
-//
+
 
 import SwiftUI
 import Combine

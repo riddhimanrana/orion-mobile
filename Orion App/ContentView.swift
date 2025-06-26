@@ -5,7 +5,7 @@ struct ContentView: View {
     @EnvironmentObject var cameraManager: CameraManager
     @EnvironmentObject var appState: AppStateManager
     @StateObject private var wsManager = WebSocketManager()
-    
+
     @State private var latestAnalysis: SceneAnalysis?
     @State private var analysisTimestamp: TimeInterval = 0
     @State private var showErrorAlert = false
@@ -25,32 +25,26 @@ struct ContentView: View {
                 Image(systemName: "camera.fill")
                 Text("Camera")
             }
-            
-            // Tab 2: Scene Analysis
-            SceneAnalysisTabView(
-                latestAnalysis: latestAnalysis,
-                analysisTimestamp: analysisTimestamp
-            )
-            .environmentObject(wsManager)
-            .environmentObject(appState)
-            .tabItem {
-                Image(systemName: "brain.head.profile")
-                Text("Scene Analysis")
-            }
-            
-            // Tab 3: Debug
+
+            // Tab 2: Debug
             DebugTabView()
-            .environmentObject(wsManager)
-            .environmentObject(appState)
-            .environmentObject(cameraManager)
-            .tabItem {
-                Image(systemName: "ladybug.fill")
-                Text("Debug")
-            }
+                .environmentObject(wsManager)
+                .environmentObject(appState)
+                .environmentObject(cameraManager)
+                .tabItem {
+                    Image(systemName: "ladybug.fill")
+                    Text("Debug")
+                }
+
+            // Tab 3: Settings
+            SettingsTabView()
+                .tabItem {
+                    Image(systemName: "gear")
+                    Text("Settings")
+                }
         }
         .onAppear {
             setupManagers()
-            cameraManager.startStreaming()
         }
         .onReceive(cameraManager.$error) { cameraError in
             if let camError = cameraError, !camError.isEmpty {
@@ -79,7 +73,7 @@ struct ContentView: View {
         
         wsManager.onAnalysis = { analysis in
             DispatchQueue.main.async {
-                withAnimation(.easeInOut(duration: UIConfig.standardAnimationDuration)) {
+                withAnimation(.easeInOut(duration: 0.2)) {
                     self.latestAnalysis = analysis
                     self.analysisTimestamp = Date().timeIntervalSince1970
                 }

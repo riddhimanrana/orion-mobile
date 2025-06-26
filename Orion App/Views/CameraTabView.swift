@@ -5,26 +5,24 @@
 //  Created by Riddhiman Rana on 6/16/25.
 //
 
-
-//
-//  CameraTabView.swift
-//  Orion
-//
-//  Created by Roo on 6/16/25.
-//  Camera tab with YOLOv11n object detection overlay
-//
-
 import SwiftUI
 import Combine
 
 struct CameraTabView: View {
+    @Environment(\.colorScheme) var colorScheme
     @EnvironmentObject var cameraManager: CameraManager
     @EnvironmentObject var appState: AppStateManager
     @ObservedObject var wsManager: WebSocketManager
     
     @Binding var latestAnalysis: SceneAnalysis?
     @Binding var analysisTimestamp: TimeInterval
+    
+    @State private var isCameraActive = false
     @State private var showingSettingsSheet = false
+    @State private var showingCameraSwitcher = false
+    
+    // Namespace for smooth camera switcher animation
+    @Namespace private var cameraAnimation
     
     private var safeAreaTopInset: CGFloat {
         let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene
@@ -32,42 +30,120 @@ struct CameraTabView: View {
     }
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                // Camera view with detection overlays
-                CameraView()
-                    .environmentObject(cameraManager)
-                    .ignoresSafeArea()
-                
-                VStack {
-                    // Top overlay with status and controls
-                    HStack {
-                        connectionStatusView
-                        Spacer()
-                        performanceMetricsView
-                        settingsButton
+        Group {
+            if isCameraActive {
+                NavigationView {
+                    ZStack(alignment: .top) {
+                        // Camera view with detection overlays
+                        CameraView()
+                            .environmentObject(cameraManager)
+                            .ignoresSafeArea()
+                        
+                        // Top overlay with status and controls
+                        HStack {
+                            connectionStatusView
+                            disconnectButton
+                            Spacer()
+                            // The camera switcher is now in its own VStack for positioning
+                        }
+                        .padding(.top, (safeAreaTopInset == 0 ? -35 : safeAreaTopInset - 35))
+                        .padding(.horizontal)
+
+                        // Position the entire camera switcher UI in the top right
+                        VStack(spacing: 12) {
+                            if showingCameraSwitcher {
+                                CameraSwitcherOverlay(
+                                    showingCameraSwitcher: $showingCameraSwitcher,
+                                    animation: cameraAnimation
+                                )
+                                .environmentObject(cameraManager)
+                            }
+                            cameraSwitchButton
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                        .padding(.top, (safeAreaTopInset == 0 ? -35 : safeAreaTopInset - 35))
+                        .padding(.trailing)
+                        
+                        VStack {
+                            Spacer()
+                            // Bottom overlay with detection stats
+                            if !cameraManager.lastDetections.isEmpty {
+                                detectionStatsView
+                                    .padding(.horizontal)
+                                    .padding(.bottom, 20)
+                            }
+                        }
                     }
-                    .padding(.top, safeAreaTopInset)
-                    .padding(.horizontal)
-                    
-                    Spacer()
-                    
-                    // Bottom overlay with detection stats
-                    if !cameraManager.lastDetections.isEmpty {
-                        detectionStatsView
-                            .padding(.horizontal)
-                            .padding(.bottom, 20)
-                    }
+                    .navigationBarHidden(true)
                 }
+                .navigationViewStyle(StackNavigationViewStyle())
+                .sheet(isPresented: $showingSettingsSheet) {
+                    SettingsView()
+                        .environmentObject(wsManager)
+                        .environmentObject(appState)
+                }
+            } else {
+                StartView(isCameraActive: $isCameraActive, onStart: {
+                    cameraManager.startStreaming()
+                })
             }
-            .navigationBarHidden(true)
         }
-        .navigationViewStyle(StackNavigationViewStyle())
-        .sheet(isPresented: $showingSettingsSheet) {
-            SettingsView()
-                .environmentObject(wsManager)
-                .environmentObject(appState)
+    }
+
+    // MARK: - Disconnect Button
+    private var disconnectButton: some View {
+        Button(action: {
+            let haptic = UIImpactFeedbackGenerator(style: .medium)
+            haptic.impactOccurred()
+            withAnimation(.easeOut(duration: 0.3)) {
+                isCameraActive = false
+            }
+            cameraManager.stopStreaming()
+            wsManager.disconnect()
+        }) {
+            Image(systemName: "phone.down.fill")
+                .font(.system(size: 20))
+                .foregroundColor(.white)
+                .frame(width: 44, height: 44)
+                .background(Color.red)
+                .padding(.horizontal, 12)
+                .clipShape(Circle())
+                .shadow(radius: 5)
         }
+        .accessibilityLabel("Disconnect")
+    }
+
+    // MARK: - Camera Switcher Button
+    private var cameraSwitchButton: some View {
+        Button(action: {
+            withAnimation(.interpolatingSpring(stiffness: 300, damping: 20)) {
+                showingCameraSwitcher.toggle()
+            }
+        }) {
+            // The button now shows the current zoom/camera state
+            if let option = cameraManager.currentCameraOption, !showingCameraSwitcher {
+                if option.isFrontCamera {
+                    Image(systemName: "arrow.triangle.2.circlepath.camera.fill")
+                        .font(.system(size: 18))
+                        .frame(width: 44, height: 44)
+                        .matchedGeometryEffect(id: "front_camera_icon", in: cameraAnimation)
+                } else {
+                    Text(option.displayName)
+                        .font(.system(size: 14, weight: .bold))
+                        .frame(width: 44, height: 44)
+                        .matchedGeometryEffect(id: option.id, in: cameraAnimation)
+                }
+            } else {
+                // Close button when switcher is open
+                Image(systemName: "xmark")
+                    .font(.system(size: 14, weight: .bold))
+                    .frame(width: 44, height: 44)
+            }
+        }
+        .foregroundColor(.white)
+        .background(Color.black.opacity(0.5))
+        .clipShape(Circle())
+        .accessibilityLabel("Switch Camera")
     }
     
     // MARK: - Connection Status View
@@ -80,7 +156,7 @@ struct CameraTabView: View {
             
             Text(webSocketStatusText)
                 .font(.caption.weight(.medium))
-                .foregroundColor(.white)
+                .foregroundColor(colorScheme == .dark ? .white : .black)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
@@ -110,73 +186,34 @@ struct CameraTabView: View {
         }
     }
     
-    // MARK: - Performance Metrics View
-    private var performanceMetricsView: some View {
-        VStack(alignment: .trailing, spacing: 2) {
-            Text("FPS: \(String(format: "%.1f", appState.performanceMetrics.fps))")
-                .font(.caption.weight(.medium))
-            Text("Mem: \(String(format: "%.1f", appState.performanceMetrics.memoryUsage))MB")
-                .font(.caption.weight(.medium))
-        }
-        .foregroundColor(.white)
-        .padding(EdgeInsets(top: 6, leading: 10, bottom: 6, trailing: 10))
-        .background(.ultraThinMaterial)
-        .cornerRadius(8)
-    }
-    
-    // MARK: - Settings Button
-    private var settingsButton: some View {
-        Button {
-            showingSettingsSheet = true
-        } label: {
-            Image(systemName: "gearshape.fill")
-                .imageScale(.large)
-                .foregroundColor(.white)
-                .padding(10)
-                .background(Circle().fill(.ultraThinMaterial))
-        }
-        .accessibilityLabel("Settings")
-    }
-    
     // MARK: - Detection Stats View
     private var detectionStatsView: some View {
         HStack(spacing: 16) {
-            // Detection count
             VStack(spacing: 2) {
                 Text("\(cameraManager.lastDetections.count)")
                     .font(.title2.weight(.bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                 Text("Objects")
                     .font(.caption)
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
             }
-            
-            Divider()
-                .background(.white.opacity(0.3))
-                .frame(height: 30)
-            
-            // Average confidence
+            Divider().frame(height: 30)
             VStack(spacing: 2) {
                 Text("\(averageConfidence, specifier: "%.0f")%")
                     .font(.title2.weight(.bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                 Text("Confidence")
                     .font(.caption)
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
             }
-            
-            Divider()
-                .background(.white.opacity(0.3))
-                .frame(height: 30)
-            
-            // Processing status
+            Divider().frame(height: 30)
             VStack(spacing: 2) {
                 Image(systemName: processingIndicator)
                     .font(.title2.weight(.bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                 Text("Processing")
                     .font(.caption)
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
             }
         }
         .padding(.horizontal, 20)
@@ -193,11 +230,7 @@ struct CameraTabView: View {
     }
     
     private var processingIndicator: String {
-        if cameraManager.lastDetections.isEmpty {
-            return "magnifyingglass"
-        } else {
-            return "checkmark.circle.fill"
-        }
+        cameraManager.lastDetections.isEmpty ? "magnifyingglass" : "checkmark.circle.fill"
     }
 }
 

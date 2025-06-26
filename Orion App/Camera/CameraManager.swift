@@ -1,4 +1,4 @@
-import Combine // Ensure this is at the top
+import Combine
 import AVFoundation
 import CoreImage
 import Vision
@@ -6,10 +6,42 @@ import UIKit
 
 // Helper for logging within CameraManager
 private func logCM(_ message: String) {
-    // Assuming Logger.shared.log handles the [CameraManager] prefix or it's desired here.
-    // If Logger.shared.log is meant to take a category, this might need adjustment
-    // For now, keeping it as is, as the main issue is the content of `message`
     Logger.shared.log("[CameraManager] \(message)", category: .camera)
+}
+
+// Define CameraOption here to be accessible by views
+struct CameraOption: Identifiable, Equatable {
+    var id: String { device.uniqueID }
+    let type: CameraType
+    let zoomFactor: Double?
+    let isFrontCamera: Bool
+    let device: AVCaptureDevice
+
+    var displayName: String {
+        if isFrontCamera {
+            return "Front"
+        }
+        if let zoom = zoomFactor {
+            return zoom.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0fx", zoom) : String(format: "%.1fx", zoom)
+        }
+        switch type {
+        case .wide: return "1x"
+        case .ultraWide: return "0.5x"
+        case .telephoto: return "Tele"
+        case .front: return "Front"
+        }
+    }
+
+    static func == (lhs: CameraOption, rhs: CameraOption) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
+enum CameraType {
+    case wide
+    case ultraWide
+    case telephoto
+    case front
 }
 
 class CameraManager: NSObject, ObservableObject {
@@ -32,69 +64,67 @@ class CameraManager: NSObject, ObservableObject {
     /// Published state for SwiftUI UI updates
     @Published private(set) var isStreaming = false
     @Published private(set) var error: String?
-    @Published var lastDetections: [Detection] = [] // <<< FIX: Added for UI updates
+    @Published var lastDetections: [Detection] = []
+    @Published private(set) var availableCameraOptions: [CameraOption] = []
+    @Published private(set) var currentCameraOption: CameraOption?
 
     private var currentFrameImageDataForCallback: Data?
 
     override init() {
         super.init()
         logCM("Initializing...")
-        setupCamera()
+        discoverCameraOptions()
+        
+        if let defaultOption = availableCameraOptions.first(where: { $0.type == .wide && !$0.isFrontCamera }) ?? availableCameraOptions.first(where: { !$0.isFrontCamera }) ?? availableCameraOptions.first {
+            logCM("Setting initial camera to \(defaultOption.displayName)")
+            self.currentCameraOption = defaultOption
+            setupSession(with: defaultOption.device)
+        } else {
+            let errMsg = "No cameras found."
+            logCM(errMsg)
+            DispatchQueue.main.async { self.error = errMsg }
+        }
+        
         setupYOLO()
         logCM("Initialization complete. Final error state: \(error ?? "None")")
     }
     
-    /// **FIX: Creates the preview layer for the CameraView**
     func getPreviewLayer() -> AVCaptureVideoPreviewLayer {
         logCM("getPreviewLayer called.")
         let previewLayer = AVCaptureVideoPreviewLayer(session: session)
         previewLayer.videoGravity = .resizeAspectFill
-        // It's good practice to set the connection's videoOrientation if you know the UI orientation.
-        // However, for a basic preview, often not strictly necessary if UI handles rotation.
-        // If orientation issues arise with the preview, this is a place to investigate.
-        // Example: if let connection = previewLayer.connection, connection.isVideoOrientationSupported {
-        // connection.videoOrientation = .portrait // or landscape, based on UI
-        // }
         return previewLayer
     }
     
     func startStreaming() {
         logCM("startStreaming called. Current isStreaming: \(isStreaming), session.isReallyRunning: \(session.isRunning)")
-        guard !isStreaming || !session.isRunning else { // Check both our flag and actual session state
-            logCM("Already streaming or session is already running. isStreaming: \(isStreaming), session.isReallyRunning: \(session.isRunning)")
-            if session.isRunning && !self.isStreaming { // Correct our flag if out of sync
+        guard !isStreaming || !session.isRunning else {
+            logCM("Already streaming or session is already running.")
+            if session.isRunning && !self.isStreaming {
                  DispatchQueue.main.async { self.isStreaming = true }
             }
             return
         }
 
         logCM("Attempting to start streaming session...")
-        if session.inputs.isEmpty {
-            let errMsg = "No inputs in session. Cannot start."
-            logCM(errMsg)
-            DispatchQueue.main.async { self.error = errMsg }
-            return
-        }
-        if session.outputs.isEmpty {
-            let errMsg = "No outputs in session. Cannot start."
+        if session.inputs.isEmpty || session.outputs.isEmpty {
+            let errMsg = "No inputs or outputs in session. Cannot start."
             logCM(errMsg)
             DispatchQueue.main.async { self.error = errMsg }
             return
         }
 
-        logCM("Session has inputs and outputs. Proceeding to start.")
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
-            logCM("Calling session.startRunning() on background thread.")
-            self.session.startRunning() // This can take time
+            self.session.startRunning()
             DispatchQueue.main.async {
                 self.isStreaming = self.session.isRunning
                 if self.isStreaming {
-                    logCM("Session started successfully. isStreaming = true, session.isReallyRunning: \(self.session.isRunning)")
+                    logCM("Session started successfully.")
                 } else {
-                    let errMsg = "Session failed to start. session.isReallyRunning is false."
+                    let errMsg = "Session failed to start."
                     logCM(errMsg)
-                    self.error = errMsg // This will be picked up by ContentView
+                    self.error = errMsg
                 }
             }
         }
@@ -102,28 +132,20 @@ class CameraManager: NSObject, ObservableObject {
     
     func stopStreaming() {
         logCM("stopStreaming called. Current isStreaming: \(isStreaming), session.isReallyRunning: \(session.isRunning)")
-        
         guard isStreaming || session.isRunning else {
-            logCM("Not streaming or session not running. isStreaming=\(isStreaming), session.isReallyRunning=\(session.isRunning). Nothing to do.")
-            if !session.isRunning && self.isStreaming { // Correct our flag if out of sync
+            logCM("Not streaming or session not running.")
+            if !session.isRunning && self.isStreaming {
                  DispatchQueue.main.async { self.isStreaming = false }
             }
             return
         }
         
-        logCM("Attempting to stop streaming session...")
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
-            logCM("Calling session.stopRunning() on background thread.")
             self.session.stopRunning()
             DispatchQueue.main.async {
-                self.isStreaming = self.session.isRunning // Should be false
-                if !self.isStreaming {
-                    logCM("Session stopped successfully. isStreaming = false, session.isReallyRunning: \(self.session.isRunning)")
-                } else {
-                    logCM("Session failed to stop. session.isReallyRunning is still true.")
-                    // self.error = "Failed to stop camera session." // Optional
-                }
+                self.isStreaming = self.session.isRunning
+                logCM(self.isStreaming ? "Session failed to stop." : "Session stopped successfully.")
             }
         }
     }
@@ -131,21 +153,39 @@ class CameraManager: NSObject, ObservableObject {
     func setDetectionCallback(_ callback: @escaping (Data?, [Detection]) -> Void) {
         self.detectionCallback = callback
     }
-    
-    private func setupCamera() {
-        logCM("Setting up camera...")
-        session.beginConfiguration() // Good practice to batch configuration changes
-        session.sessionPreset = .hd1920x1080
-        
-        guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
-            let errMsg = "Failed to access the back camera. Ensure permissions are granted and device has a suitable camera."
-            logCM(errMsg)
-            DispatchQueue.main.async { self.error = errMsg }
-            session.commitConfiguration()
+
+    func switchCamera(to option: CameraOption) {
+        guard option.id != currentCameraOption?.id else {
+            logCM("Already using camera \(option.displayName). No switch needed.")
             return
         }
-        logCM("Camera device found: \(device.localizedName)")
+        logCM("Attempting to switch camera to \(option.displayName)...")
         
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            self.setupSession(with: option.device)
+            
+            DispatchQueue.main.async {
+                self.currentCameraOption = option
+            }
+            
+            if !self.session.isRunning {
+                self.startStreaming()
+            }
+        }
+    }
+    
+    private func setupSession(with device: AVCaptureDevice) {
+        logCM("Setting up session for device: \(device.localizedName)...")
+        session.beginConfiguration()
+        defer { session.commitConfiguration() }
+
+        session.inputs.forEach { session.removeInput($0) }
+        session.outputs.forEach { session.removeOutput($0) }
+
+        session.sessionPreset = .hd1920x1080
+
         do {
             let input = try AVCaptureDeviceInput(device: device)
             if session.canAddInput(input) {
@@ -155,39 +195,86 @@ class CameraManager: NSObject, ObservableObject {
                 let errMsg = "Cannot add camera input to session."
                 logCM(errMsg)
                 DispatchQueue.main.async { self.error = errMsg }
-                session.commitConfiguration()
                 return
             }
         } catch {
             let errMsg = "Failed to create camera input: \(error.localizedDescription)"
             logCM(errMsg)
             DispatchQueue.main.async { self.error = errMsg }
-            session.commitConfiguration()
             return
         }
-        
-        let localVideoOutput = AVCaptureVideoDataOutput() // Renamed to avoid confusion with self.videoOutput before assignment
+
+        let localVideoOutput = AVCaptureVideoDataOutput()
         localVideoOutput.setSampleBufferDelegate(self, queue: processingQueue)
-        localVideoOutput.videoSettings = [
-            kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)
-        ]
-        // localVideoOutput.alwaysDiscardsLateVideoFrames = true // Consider this to reduce latency if processing is slow
+        localVideoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)]
         
         if session.canAddOutput(localVideoOutput) {
             session.addOutput(localVideoOutput)
-            self.videoOutput = localVideoOutput // Assign to the class property
+            self.videoOutput = localVideoOutput
             logCM("Video output added.")
         } else {
             let errMsg = "Cannot add video output to session."
             logCM(errMsg)
             DispatchQueue.main.async { self.error = errMsg }
-            session.commitConfiguration()
             return
         }
-        session.commitConfiguration() // Commit configuration changes
-        logCM("Camera setup complete. Inputs: \(session.inputs.count), Outputs: \(session.outputs.count)")
+        logCM("Camera setup complete.")
     }
     
+    private func discoverCameraOptions() {
+        logCM("Discovering camera options...")
+        var options: [CameraOption] = []
+
+        // Front camera
+        if let frontCamera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front) {
+            options.append(CameraOption(type: .front, zoomFactor: nil, isFrontCamera: true, device: frontCamera))
+        }
+
+        // Back cameras
+        var backCameraDeviceTypes: [AVCaptureDevice.DeviceType] = [.builtInWideAngleCamera]
+        if #available(iOS 13.0, *) {
+            backCameraDeviceTypes.append(contentsOf: [.builtInUltraWideCamera, .builtInTelephotoCamera])
+        }
+        
+        let discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: backCameraDeviceTypes, mediaType: .video, position: .back)
+
+        for device in discoverySession.devices {
+            let zoomFactor: Double?
+            let cameraType: CameraType
+            
+            let deviceType = device.deviceType
+            
+            if deviceType == .builtInWideAngleCamera {
+                cameraType = .wide
+                zoomFactor = 1.0
+            } else if #available(iOS 13.0, *), deviceType == .builtInUltraWideCamera {
+                cameraType = .ultraWide
+                zoomFactor = 0.5
+            } else if #available(iOS 13.0, *), deviceType == .builtInTelephotoCamera {
+                cameraType = .telephoto
+                if device.localizedName.contains("5x") { zoomFactor = 5.0 }
+                else if device.localizedName.contains("3x") { zoomFactor = 3.0 }
+                else { zoomFactor = 2.0 }
+            } else {
+                continue
+            }
+            
+            if !options.contains(where: { $0.type == cameraType && !$0.isFrontCamera }) {
+                options.append(CameraOption(type: cameraType, zoomFactor: zoomFactor, isFrontCamera: false, device: device))
+            }
+        }
+
+        self.availableCameraOptions = options.sorted { (opt1, opt2) -> Bool in
+            if opt1.isFrontCamera { return false }
+            if opt2.isFrontCamera { return true }
+            guard let zoom1 = opt1.zoomFactor, let zoom2 = opt2.zoomFactor else { return false }
+            return zoom1 < zoom2
+        }
+        
+        logCM("Discovered \(self.availableCameraOptions.count) camera options.")
+        self.availableCameraOptions.forEach { logCM("  - \($0.displayName) (Front: \($0.isFrontCamera)) - Device: \($0.device.localizedName)") }
+    }
+
     private func setupYOLO() {
         logCM("Setting up YOLO model...")
         modelConfig.computeUnits = .all // Use .cpuOnly or .cpuAndGPU for testing if .all causes issues
@@ -259,7 +346,7 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
             // .right is common for landscape right.
             let orientedImage = ciImage.oriented(.right) // Match this with Vision request if consistent
             if let cgImage = CIContext().createCGImage(orientedImage, from: orientedImage.extent) {
-                localImageData = UIImage(cgImage: cgImage).jpegData(compressionQuality: CameraConfig.processingQuality) // Use constant
+                localImageData = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.7)
             } else {
                 logCM("Failed to create CGImage for callback.")
             }
@@ -331,10 +418,6 @@ extension CameraManager {
                 }
                 
                 // Bounding box coordinates are normalized (0.0 to 1.0)
-                // The current bbox format [minX, minY, maxX, maxY] is different from
-                // what some models output (e.g. [x_center, y_center, width, height]).
-                // VNRecognizedObjectObservation.boundingBox is a CGRect (origin, size) normalized.
-                // So, minX, minY, maxX, maxY is correct for this.
                 let boundingBox = observation.boundingBox // This is a CGRect
                 let bboxArray = [
                     Float(boundingBox.minX),

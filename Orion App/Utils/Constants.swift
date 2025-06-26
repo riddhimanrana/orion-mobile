@@ -10,7 +10,7 @@ enum ServerConfig {
     static let wsURL = "ws://\(host):\(port)/ios"
     
     // WebSocket configuration
-    static let reconnectDelay = 2.0  // Seconds
+    static let reconnectDelay = 60.0  // Seconds
     static let pingInterval = 30.0    // Seconds
     static let connectionTimeout = 5.0 // Seconds
 }

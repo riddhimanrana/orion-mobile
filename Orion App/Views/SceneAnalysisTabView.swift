@@ -5,15 +5,6 @@
 //  Created by Riddhiman Rana on 6/16/25.
 //
 
-
-//
-//  SceneAnalysisTabView.swift
-//  Orion
-//
-//  Created by Roo on 6/16/25.
-//  Scene analysis tab with Fast-VLM descriptions and visual analysis
-//
-
 import SwiftUI
 
 struct SceneAnalysisTabView: View {
