@@ -4,7 +4,7 @@ import Combine
 struct StartView: View {
     @Environment(\.colorScheme) var colorScheme
     @Binding var isCameraActive: Bool
-    var onStart: () -> Void
+    var onStart: (@escaping () -> Void) -> Void
 
     @State private var isLoading = false
     @State private var pulsating = false
@@ -30,7 +30,7 @@ struct StartView: View {
             // Animated particles
             ForEach(nodes) { node in
                 Capsule()
-                    .fill(Color.white.opacity(node.opacity))
+                    .fill((colorScheme == .dark ? Color.white : Color.black).opacity(node.opacity))
                     .frame(width: node.size * node.stretch, height: node.size)
                     .rotationEffect(.degrees(node.angle))
                     .position(node.position)
@@ -48,10 +48,7 @@ struct StartView: View {
                 Spacer()
 
                 // Title
-                Text("Orion Live")
-                    .font(.system(size: 60, weight: .heavy))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                    .shadow(color: .cyan, radius: 20, x: 0, y: 0)
+                TitleView()
                     .scaleEffect(pulsating ? 1.05 : 1.0)
                     .animation(Animation.easeInOut(duration: 3).repeatForever(autoreverses: true), value: pulsating)
 
@@ -105,6 +102,19 @@ struct StartView: View {
             .opacity(isLoading ? 0 : 1)
             .onAppear(perform: setupNodes)
             .animation(.easeInOut(duration: 1.2), value: isLoading)
+            
+            // Loading Indicator
+            if isLoading {
+                VStack(spacing: 20) {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(2.0)
+                    Text("Loading Models...")
+                        .font(.title3)
+                        .foregroundColor(.white.opacity(0.8))
+                }
+                .transition(.opacity)
+            }
         }
     }
 
@@ -182,15 +192,19 @@ struct StartView: View {
     }
 
     private func startLoading() {
-        isLoading = true
-        triggerHyperspeed()
-        onStart()
+        withAnimation(.easeInOut(duration: 0.5)) {
+            isLoading = true
+        }
+        onStart { 
+            // This block is executed when loading is complete.
+            // Now we can trigger the transition animation.
+            triggerHyperspeed()
+        }
     }
 }
 
 struct StartView_Previews: PreviewProvider {
     static var previews: some View {
-        StartView(isCameraActive: .constant(false), onStart: {})
+        StartView(isCameraActive: .constant(false), onStart: { completion in completion() })
     }
 }
-

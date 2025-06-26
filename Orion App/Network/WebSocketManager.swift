@@ -235,7 +235,7 @@ class WebSocketManager: ObservableObject {
                 
                     // Simple reconnect delay, ensure this doesn't loop too aggressively
                     // if server is genuinely down. Consider exponential backoff for production.
-                    DispatchQueue.main.asyncAfter(deadline: .now() + ServerConfig.reconnectDelay) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + SettingsManager.shared.reconnectDelay) {
                         if self.status == .disconnected { // Check again before reconnecting
                             self.log("Attempting to reconnect after receive error.")
                             self.connect()

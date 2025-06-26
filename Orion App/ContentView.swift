@@ -38,6 +38,8 @@ struct ContentView: View {
 
             // Tab 3: Settings
             SettingsTabView()
+                .environmentObject(appState)
+                .environmentObject(wsManager)
                 .tabItem {
                     Image(systemName: "gear")
                     Text("Settings")

@@ -20,6 +20,7 @@ struct CameraTabView: View {
     @State private var isCameraActive = false
     @State private var showingSettingsSheet = false
     @State private var showingCameraSwitcher = false
+    @State private var isDisconnecting = false
     
     // Namespace for smooth camera switcher animation
     @Namespace private var cameraAnimation
@@ -30,62 +31,86 @@ struct CameraTabView: View {
     }
     
     var body: some View {
-        Group {
-            if isCameraActive {
-                NavigationView {
-                    ZStack(alignment: .top) {
-                        // Camera view with detection overlays
-                        CameraView()
-                            .environmentObject(cameraManager)
-                            .ignoresSafeArea()
-                        
-                        // Top overlay with status and controls
-                        HStack {
-                            connectionStatusView
-                            disconnectButton
-                            Spacer()
-                            // The camera switcher is now in its own VStack for positioning
-                        }
-                        .padding(.top, (safeAreaTopInset == 0 ? -35 : safeAreaTopInset - 35))
-                        .padding(.horizontal)
-
-                        // Position the entire camera switcher UI in the top right
-                        VStack(spacing: 12) {
-                            if showingCameraSwitcher {
-                                CameraSwitcherOverlay(
-                                    showingCameraSwitcher: $showingCameraSwitcher,
-                                    animation: cameraAnimation
-                                )
+        ZStack {
+            Group {
+                if isCameraActive {
+                    NavigationView {
+                        ZStack(alignment: .top) {
+                            // Camera view with detection overlays
+                            CameraView()
                                 .environmentObject(cameraManager)
+                                .ignoresSafeArea()
+                            
+                            // Top overlay with status and controls
+                            HStack {
+                                connectionStatusView
+                                disconnectButton
+                                Spacer()
+                                // The camera switcher is now in its own VStack for positioning
                             }
-                            cameraSwitchButton
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                        .padding(.top, (safeAreaTopInset == 0 ? -35 : safeAreaTopInset - 35))
-                        .padding(.trailing)
-                        
-                        VStack {
-                            Spacer()
-                            // Bottom overlay with detection stats
-                            if !cameraManager.lastDetections.isEmpty {
-                                detectionStatsView
-                                    .padding(.horizontal)
-                                    .padding(.bottom, 20)
+                            .padding(.top, (safeAreaTopInset == 0 ? -35 : safeAreaTopInset - 35))
+                            .padding(.horizontal)
+
+                            // Position the entire camera switcher UI in the top right
+                            VStack(spacing: 12) {
+                                if showingCameraSwitcher {
+                                    CameraSwitcherOverlay(
+                                        showingCameraSwitcher: $showingCameraSwitcher,
+                                        animation: cameraAnimation
+                                    )
+                                    .environmentObject(cameraManager)
+                                }
+                                cameraSwitchButton
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                            .padding(.top, (safeAreaTopInset == 0 ? -35 : safeAreaTopInset - 35))
+                            .padding(.trailing)
+                            
+                            VStack {
+                                Spacer()
+                                // Bottom overlay with detection stats
+                                if !cameraManager.lastDetections.isEmpty {
+                                    detectionStatsView
+                                        .padding(.horizontal)
+                                        .padding(.bottom, 20)
+                                }
                             }
                         }
+                        .navigationBarHidden(true)
                     }
-                    .navigationBarHidden(true)
+                    .navigationViewStyle(StackNavigationViewStyle())
+                    .sheet(isPresented: $showingSettingsSheet) {
+                        SettingsView()
+                            .environmentObject(wsManager)
+                            .environmentObject(appState)
+                    }
+                } else {
+                    StartView(isCameraActive: $isCameraActive, onStart: { completion in
+                        // Run heavy tasks in background
+                        DispatchQueue.global(qos: .userInitiated).async {
+                            cameraManager.startStreaming()
+                            // Switch back to main thread to call completion
+                            DispatchQueue.main.async {
+                                completion()
+                            }
+                        }
+                    })
                 }
-                .navigationViewStyle(StackNavigationViewStyle())
-                .sheet(isPresented: $showingSettingsSheet) {
-                    SettingsView()
-                        .environmentObject(wsManager)
-                        .environmentObject(appState)
+            }
+            .disabled(isDisconnecting)
+
+            // Disconnecting overlay
+            if isDisconnecting {
+                Color.black.opacity(0.6).edgesIgnoringSafeArea(.all)
+                VStack(spacing: 20) {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(2.0)
+                    Text("Disconnecting...")
+                        .font(.title3)
+                        .foregroundColor(.white.opacity(0.8))
                 }
-            } else {
-                StartView(isCameraActive: $isCameraActive, onStart: {
-                    cameraManager.startStreaming()
-                })
+                .transition(.opacity)
             }
         }
     }
@@ -95,11 +120,24 @@ struct CameraTabView: View {
         Button(action: {
             let haptic = UIImpactFeedbackGenerator(style: .medium)
             haptic.impactOccurred()
-            withAnimation(.easeOut(duration: 0.3)) {
-                isCameraActive = false
+            
+            withAnimation {
+                isDisconnecting = true
             }
-            cameraManager.stopStreaming()
-            wsManager.disconnect()
+
+            // Perform cleanup in the background
+            DispatchQueue.global(qos: .userInitiated).async {
+                cameraManager.stopStreaming()
+                wsManager.disconnect()
+                
+                // Switch back to main thread to update UI
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { // Small delay for animation
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        isCameraActive = false
+                    }
+                    isDisconnecting = false
+                }
+            }
         }) {
             Image(systemName: "phone.down.fill")
                 .font(.system(size: 20))
@@ -111,8 +149,9 @@ struct CameraTabView: View {
                 .shadow(radius: 5)
         }
         .accessibilityLabel("Disconnect")
+        .disabled(isDisconnecting)
     }
-
+    
     // MARK: - Camera Switcher Button
     private var cameraSwitchButton: some View {
         Button(action: {
@@ -199,7 +238,7 @@ struct CameraTabView: View {
             }
             Divider().frame(height: 30)
             VStack(spacing: 2) {
-                Text("\(averageConfidence, specifier: "%.0f")%")
+                Text(String(format: "%.0f%%", averageConfidence))
                     .font(.title2.weight(.bold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 Text("Confidence")

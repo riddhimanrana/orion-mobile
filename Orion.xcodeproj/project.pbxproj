@@ -21,6 +21,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		8403F9422E0E0A9A005951C7 /* Orion-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "Orion-Info.plist"; sourceTree = "<group>"; };
 		84270E592DFAAB5D00AF2664 /* Orion.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Orion.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8440DA062E0CC6CC0012B849 /* Orion.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Orion.entitlements; sourceTree = "<group>"; };
 		84FEC22F2E00E4E400362F8A /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
@@ -58,6 +59,7 @@
 		84270E502DFAAB5D00AF2664 = {
 			isa = PBXGroup;
 			children = (
+				8403F9422E0E0A9A005951C7 /* Orion-Info.plist */,
 				84FEC2312E00E54D00362F8A /* README.md */,
 				84FEC2342E00E56900362F8A /* LICENSE */,
 				8440DA062E0CC6CC0012B849 /* Orion.entitlements */,
@@ -302,6 +304,7 @@
 				DEVELOPMENT_TEAM = TB6CA879K5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Orion-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Orion;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Orion needs access to your camera to provide real-time object detection and scene analysis.";
@@ -338,6 +341,7 @@
 				DEVELOPMENT_TEAM = TB6CA879K5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Orion-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Orion;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Orion needs access to your camera to provide real-time object detection and scene analysis.";

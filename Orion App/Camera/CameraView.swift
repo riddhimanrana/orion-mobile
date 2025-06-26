@@ -61,6 +61,7 @@ class CameraPreviewView: UIView {
     }
 
     private func addDetectionOverlays(_ detections: [Detection]) {
+        guard SettingsManager.shared.showDetectionBoxes else { return }
         for det in detections {
             let overlay = DetectionOverlayView(detection: det)
             addSubview(overlay)
@@ -120,8 +121,12 @@ class DetectionOverlayView: UIView {
         label.textAlignment = .center
         label.layer.cornerRadius = 4
         label.clipsToBounds = true
-        if let det = detection {
-            label.text = "\(det.label) (\(Int(det.confidence * 100))%)"
+        if SettingsManager.shared.showDetectionLabels {
+            if let det = detection {
+                label.text = "\(det.label) (\(Int(det.confidence * 100))%)"
+            }
+        } else {
+            label.isHidden = true
         }
 
         addSubview(label)
