@@ -10,6 +10,10 @@ struct StartView: View {
     @State private var pulsating = false
     @State private var nodes: [Node] = []
     @State private var timer = Timer.publish(every: 1/60, on: .main, in: .common).autoconnect()
+    @State private var displayedText = ""
+    @State private var typewriterTimer: Timer?
+    @State private var quoteHasBeenTyped = false
+
 
     struct Node: Identifiable {
         let id = UUID()
@@ -48,27 +52,19 @@ struct StartView: View {
                 Spacer()
 
                 // Title
-                TitleView()
-                    .scaleEffect(pulsating ? 1.05 : 1.0)
-                    .animation(Animation.easeInOut(duration: 3).repeatForever(autoreverses: true), value: pulsating)
+                Text(displayedText)
+                    .font(.title2)
+                    .fontWeight(.medium)
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .padding()
+                    .onAppear(perform: startTypewriterEffect)
+
 
                 Spacer()
 
                 // Start Button
                 ZStack {
-                    // Pulsating Glows
-                    ForEach(0..<3) { i in
-                        Circle()
-                            .stroke(lineWidth: CGFloat(i * 5 + 5))
-                            .fill(
-                                AngularGradient(gradient: Gradient(colors: [.cyan, .blue, .purple, .cyan]), center: .center, startAngle: .degrees(0), endAngle: .degrees(360))
-                            )
-                            .frame(width: 150 + CGFloat(i * 50), height: 150 + CGFloat(i * 50))
-                            .opacity(pulsating ? 0.2 : 0.5)
-                            .scaleEffect(pulsating ? 1.1 : 1.0)
-                            .animation(Animation.easeInOut(duration: 2.5 + Double(i)).repeatForever(autoreverses: true), value: pulsating)
-                    }
-
                     // Button
                     Button(action: {
                         let haptic = UIImpactFeedbackGenerator(style: .heavy)
@@ -77,16 +73,12 @@ struct StartView: View {
                     }) {
                         Image(systemName: "bolt.fill")
                             .font(.system(size: 60, weight: .bold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundColor(colorScheme == .dark ? .black : .white)
                             .padding(45)
                             .background(
                                 Circle()
-                                    .fill(.ultraThinMaterial)
-                                    .shadow(color: .black.opacity(0.4), radius: 15, x: 0, y: 10)
-                            )
-                            .overlay(
-                                Circle()
-                                    .stroke(LinearGradient(gradient: Gradient(colors: [colorScheme == .dark ? .white : .black, .cyan.opacity(0.5)]), startPoint: .top, endPoint: .bottom), lineWidth: 3)
+                                    .fill(colorScheme == .dark ? Color.white : Color.black)
+                                    .shadow(color: (colorScheme == .dark ? Color.white : Color.black).opacity(0.4), radius: 15, x: 0, y: 10)
                             )
                     }
                 }
@@ -107,16 +99,46 @@ struct StartView: View {
             if isLoading {
                 VStack(spacing: 20) {
                     ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .progressViewStyle(CircularProgressViewStyle(tint: colorScheme == .dark ? .white : .black))
                         .scaleEffect(2.0)
                     Text("Loading Models...")
                         .font(.title3)
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.8))
                 }
                 .transition(.opacity)
             }
         }
+        .onReceive(Just(isCameraActive)) { newIsCameraActive in
+            if newIsCameraActive {
+                let haptic = UIImpactFeedbackGenerator(style: .soft)
+                haptic.impactOccurred()
+            }
+        }
     }
+    
+    private func startTypewriterEffect() {
+        guard !quoteHasBeenTyped else { return }
+        
+        let quote = Quotes.rotatingQuotes.randomElement() ?? ""
+        var charIndex = 0
+        
+        typewriterTimer?.invalidate()
+        typewriterTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { timer in
+            if charIndex < quote.count {
+                let index = quote.index(quote.startIndex, offsetBy: charIndex)
+                displayedText.append(quote[index])
+                
+                let haptic = UIImpactFeedbackGenerator(style: .light)
+                haptic.impactOccurred()
+                
+                charIndex += 1
+            } else {
+                timer.invalidate()
+                quoteHasBeenTyped = true
+            }
+        }
+    }
+
 
     private func setupNodes() {
         nodes = (0..<150).map { _ in

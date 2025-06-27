@@ -15,15 +15,16 @@
 		8423D9122E0A69A300463407 /* MLXVLM in Frameworks */ = {isa = PBXBuildFile; productRef = 8423D9112E0A69A300463407 /* MLXVLM */; };
 		8423D9152E0A69B500463407 /* Transformers in Frameworks */ = {isa = PBXBuildFile; productRef = 8423D9142E0A69B500463407 /* Transformers */; };
 		844535F32DFAB1CC00F0BC04 /* Starscream in Frameworks */ = {isa = PBXBuildFile; productRef = 844535F22DFAB1CC00F0BC04 /* Starscream */; };
+		845415082E0E6CC500349C72 /* Orion-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 845415072E0E6CC500349C72 /* Orion-Info.plist */; };
 		84FEC2302E00E4E400362F8A /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 84FEC22F2E00E4E400362F8A /* .gitignore */; };
 		84FEC2332E00E55000362F8A /* README.md in Sources */ = {isa = PBXBuildFile; fileRef = 84FEC2312E00E54D00362F8A /* README.md */; };
 		84FEC2352E00E56C00362F8A /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 84FEC2342E00E56900362F8A /* LICENSE */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		8403F9422E0E0A9A005951C7 /* Orion-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "Orion-Info.plist"; sourceTree = "<group>"; };
 		84270E592DFAAB5D00AF2664 /* Orion.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Orion.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8440DA062E0CC6CC0012B849 /* Orion.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Orion.entitlements; sourceTree = "<group>"; };
+		845415072E0E6CC500349C72 /* Orion-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Orion-Info.plist"; sourceTree = "<group>"; };
 		84FEC22F2E00E4E400362F8A /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		84FEC2312E00E54D00362F8A /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		84FEC2342E00E56900362F8A /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
@@ -59,13 +60,13 @@
 		84270E502DFAAB5D00AF2664 = {
 			isa = PBXGroup;
 			children = (
-				8403F9422E0E0A9A005951C7 /* Orion-Info.plist */,
 				84FEC2312E00E54D00362F8A /* README.md */,
 				84FEC2342E00E56900362F8A /* LICENSE */,
 				8440DA062E0CC6CC0012B849 /* Orion.entitlements */,
 				84FEC22F2E00E4E400362F8A /* .gitignore */,
 				84270E5B2DFAAB5D00AF2664 /* Orion App */,
 				84270E5A2DFAAB5D00AF2664 /* Products */,
+				845415072E0E6CC500349C72 /* Orion-Info.plist */,
 			);
 			sourceTree = "<group>";
 		};
@@ -156,6 +157,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				84FEC2352E00E56C00362F8A /* LICENSE in Resources */,
+				845415082E0E6CC500349C72 /* Orion-Info.plist in Resources */,
 				84FEC2302E00E4E400362F8A /* .gitignore in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
