@@ -6,12 +6,14 @@ struct Detection: Codable {
     let confidence: Float
     let bbox: [Float]  // [minX, minY, maxX, maxY] in normalized coordinates
     let trackId: Int?
+    var contextualLabel: String? // e.g., "person (center)"
     
     enum CodingKeys: String, CodingKey {
         case label
         case confidence
         case bbox
         case trackId = "track_id"
+        case contextualLabel
     }
 }
 
@@ -21,12 +23,18 @@ struct DetectionFrame: Codable {
     let timestamp: TimeInterval
     let imageData: String?
     let detections: [Detection]
+    let deviceId: String? // Added to match server's DetectionFrame
+    let vlmDescription: String? // On-device VLM description
+    let vlmConfidence: Float? // On-device VLM confidence
     
     enum CodingKeys: String, CodingKey {
         case frameId = "frame_id"
         case timestamp
         case imageData = "image_data"
         case detections
+        case deviceId = "device_id"
+        case vlmDescription = "vlm_description"
+        case vlmConfidence = "vlm_confidence"
     }
 }
 

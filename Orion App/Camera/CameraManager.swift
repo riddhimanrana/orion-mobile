@@ -58,17 +58,28 @@ class CameraManager: NSObject, ObservableObject {
     private let maxFPS = 30
     private var lastFrameTime: TimeInterval = 0
     
+    /// Frame processing state
+    enum ProcessingState {
+        case idle
+        case processing
+        case sent
+        case waitingForServer
+    }
+    @Published private(set) var processingState: ProcessingState = .idle
+    
     /// Detection callback for other purposes (e.g., network)
-    private var detectionCallback: ((Data?, [Detection]) -> Void)?
+    private var detectionCallback: ((Data?, [NetworkDetection], String?, Float?) -> Void)?
+    let detectionLogPublisher = PassthroughSubject<DetectionLogEntry, Never>()
     
     /// Published state for SwiftUI UI updates
     @Published private(set) var isStreaming = false
     @Published private(set) var error: String?
-    @Published var lastDetections: [Detection] = []
+    @Published var lastDetections: [NetworkDetection] = []
     @Published private(set) var availableCameraOptions: [CameraOption] = []
     @Published private(set) var currentCameraOption: CameraOption?
-
-    private var currentFrameImageDataForCallback: Data?
+    @Published private(set) var lastVLMDescription: String? = "FastVLM model not implemented yet"
+    @Published private(set) var lastVLMConfidence: Float? = 0.0
+    @Published var lastFrameImageData: Data?
 
     override init() {
         super.init()
@@ -150,8 +161,21 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
     
-    func setDetectionCallback(_ callback: @escaping (Data?, [Detection]) -> Void) {
+    func setDetectionCallback(_ callback: @escaping (Data?, [NetworkDetection], String?, Float?) -> Void) {
         self.detectionCallback = callback
+    }
+
+    func configure(for mode: String) {
+        if mode == "full" {
+            // Unload the model to save resources
+            detectionRequest = nil
+            logCM("YOLO model unloaded for full processing mode.")
+        } else {
+            // Ensure model is loaded for split processing mode
+            if detectionRequest == nil {
+                setupYOLO()
+            }
+        }
     }
 
     func switchCamera(to option: CameraOption) {
@@ -176,6 +200,13 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
     
+    func serverDidAcknowledgeFrame() {
+        if self.processingState == .waitingForServer {
+            logCM("Server acknowledged frame. Ready for next frame.")
+            self.processingState = .idle
+        }
+    }
+
     private func setupSession(with device: AVCaptureDevice) {
         logCM("Setting up session for device: \(device.localizedName)...")
         session.beginConfiguration()
@@ -305,16 +336,7 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
     
-    private func shouldProcessFrame() -> Bool {
-        let currentTime = CACurrentMediaTime()
-        let timeSinceLastFrame = currentTime - lastFrameTime
-        
-        if timeSinceLastFrame >= 1.0 / Double(maxFPS) {
-            lastFrameTime = currentTime
-            return true
-        }
-        return false
-    }
+    
 }
 
 // MARK: - AVCaptureVideoDataOutputSampleBufferDelegate
@@ -324,52 +346,59 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
         didOutput sampleBuffer: CMSampleBuffer,
         from connection: AVCaptureConnection
     ) {
-        // logCM("captureOutput called at \(CACurrentMediaTime())") // Very verbose, use for deep debugging
-        guard shouldProcessFrame(), let currentDetectionRequest = detectionRequest else { // Renamed to avoid confusion
-            // logCM("Skipping frame processing. shouldProcessFrame: \(shouldProcessFrame()), detectionRequest exists: \(detectionRequest != nil)")
-            return
-        }
+        guard processingState == .idle else { return }
         
+        processingState = .processing
+
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             logCM("Failed to get pixelBuffer from sampleBuffer.")
+            processingState = .idle
             return
         }
-        
-        // Prepare image data for callback if needed
-        if self.detectionCallback != nil {
-            // This part seems okay, ensure CIContext().createCGImage doesn't fail often
-            // and jpegData compression quality is reasonable.
-            var localImageData: Data?
-            let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-            // The orientation of the image sent to the server might need to match
-            // what the server expects if it's doing its own rendering or analysis.
-            // .right is common for landscape right.
-            let orientedImage = ciImage.oriented(.right) // Match this with Vision request if consistent
-            if let cgImage = CIContext().createCGImage(orientedImage, from: orientedImage.extent) {
-                localImageData = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.7)
-            } else {
-                logCM("Failed to create CGImage for callback.")
+
+        // Always generate image data for the callback
+        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        let orientedImage = ciImage.oriented(.right)
+        if let cgImage = CIContext().createCGImage(orientedImage, from: orientedImage.extent) {
+            let imageData = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.7)
+            DispatchQueue.main.async {
+                self.lastFrameImageData = imageData
             }
-            self.currentFrameImageDataForCallback = localImageData
+            // In full mode, immediately call the callback with the image data and wait for server ack.
+            if SettingsManager.shared.processingMode == "full" {
+                self.detectionCallback?(imageData, [], nil, nil)
+                processingState = .waitingForServer
+                logCM("Frame sent in full mode. Waiting for server acknowledgment...")
+                return
+            }
+        } else {
+            logCM("Failed to create CGImage for callback.")
         }
 
-        do {
-            // Ensure the orientation here matches the camera's physical orientation
-            // or how the model was trained/expects input. .right is typical for landscape right.
-            try VNImageRequestHandler(
-                cvPixelBuffer: pixelBuffer,
-                orientation: .right, // This should align with how the camera is held / preview is shown
-                options: [:]
-            ).perform([currentDetectionRequest])
-        } catch {
-            logCM("Failed to perform VNImageRequestHandler: \(error.localizedDescription)")
-            DispatchQueue.main.async {
-                self.error = "VNImageRequestHandler failed: \(error.localizedDescription)"
-                self.lastDetections = [] // Clear detections on error
+        // In "split" mode, perform local detection
+        guard let currentDetectionRequest = detectionRequest else {
+            logCM("Detection request is nil, cannot process in split mode.")
+            processingState = .idle
+            return
+        }
+
+        processingQueue.async { [weak self] in
+            guard let self = self else { return }
+            do {
+                try VNImageRequestHandler(
+                    cvPixelBuffer: pixelBuffer,
+                    orientation: .right,
+                    options: [:]
+                ).perform([currentDetectionRequest])
+            } catch {
+                logCM("Failed to perform VNImageRequestHandler: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self.error = "VNImageRequestHandler failed: \(error.localizedDescription)"
+                    self.lastDetections = []
+                }
+                self.detectionCallback?(self.lastFrameImageData, [], nil, nil)
+                self.processingState = .idle
             }
-            // Still call callback but with empty detections
-            self.detectionCallback?(self.currentFrameImageDataForCallback, [])
-            self.currentFrameImageDataForCallback = nil // Clear after use
         }
     }
 }
@@ -380,72 +409,78 @@ extension CameraManager {
         request: VNRequest,
         error: Error?
     ) {
-        // logCM("handleDetections called.") // Can be verbose
-        let imageDataToUse = self.currentFrameImageDataForCallback
-        self.currentFrameImageDataForCallback = nil // Clear after use, regardless of outcome
+        let startTime = Date()
+        let imageDataToUse = self.lastFrameImageData
 
-        if let visionError = error { // Renamed to avoid conflict
+        if let visionError = error {
             logCM("Detection error from Vision request: \(visionError.localizedDescription)")
             DispatchQueue.main.async {
                 self.error = "Vision detection error: \(visionError.localizedDescription)"
                 self.lastDetections = []
             }
-            self.detectionCallback?(imageDataToUse, [])
+            self.detectionCallback?(imageDataToUse, [], nil, nil)
             return
         }
         
         guard let results = request.results else {
             logCM("Vision request returned no results.")
             DispatchQueue.main.async {
-                // self.error = "No detection results." // This might be too aggressive if no objects is normal
                 self.lastDetections = []
             }
-            self.detectionCallback?(imageDataToUse, [])
+            self.detectionCallback?(imageDataToUse, [], nil, nil)
             return
         }
         
-        // logCM("Raw detection results count: \(results.count)")
-        
-        let detections: [Detection] = results
-            .compactMap { result -> Detection? in
+        let detections: [NetworkDetection] = results
+            .compactMap { result -> NetworkDetection? in
                 guard let observation = result as? VNRecognizedObjectObservation else {
-                    // logCM("Result was not VNRecognizedObjectObservation: \(type(of: result))")
                     return nil
                 }
                 guard let label = observation.labels.first else {
-                    // logCM("Observation had no labels: \(observation.uuid)")
                     return nil
                 }
                 
-                // Bounding box coordinates are normalized (0.0 to 1.0)
-                let boundingBox = observation.boundingBox // This is a CGRect
+                let boundingBox = observation.boundingBox
                 let bboxArray = [
                     Float(boundingBox.minX),
                     Float(boundingBox.minY),
-                    Float(boundingBox.maxX), // maxX = minX + width
-                    Float(boundingBox.maxY)  // maxY = minY + height
+                    Float(boundingBox.maxX),
+                    Float(boundingBox.maxY)
                 ]
                 
-                // logCM("Detected: \(label.identifier) (\(label.confidence)) at \(bboxArray)")
-
-                return Detection(
+                var detection = NetworkDetection(
                     label: label.identifier,
                     confidence: label.confidence,
                     bbox: bboxArray,
-                    trackId: observation.uuid.hashValue // Using UUID's hashValue for a simple trackId
+                    trackId: observation.uuid.hashValue
                 )
+                detection.contextualLabel = getSpatialLabel(from: bboxArray)
+                return detection
             }
         
-        // logCM("Processed detections count: \(detections.count)")
-        
+        let processingTime = Date().timeIntervalSince(startTime)
+        let avgConfidence = detections.map(\.confidence).reduce(0, +) / Float(detections.count)
+        let logEntry = DetectionLogEntry(detectionsCount: detections.count, averageConfidence: avgConfidence, processingTime: processingTime, timestamp: Date())
+        detectionLogPublisher.send(logEntry)
+
         DispatchQueue.main.async {
             self.lastDetections = detections
-            // logCM("Updated lastDetections on main thread. Count: \(detections.count)")
-            if detections.isEmpty && results.isEmpty {
-                 // logCM("No objects detected in this frame.") // Log if no objects were found
-            }
         }
         
-        self.detectionCallback?(imageDataToUse, detections)
+        // Simulate FastVLM processing with a 2-second delay
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            guard let self = self else { return }
+            let simulatedVLMDescription = "FastVLM model not implemented yet. Detected: \(detections.map { $0.label }.joined(separator: ", "))"
+            let simulatedVLMConfidence: Float = 0.5 // Placeholder confidence
+            
+            DispatchQueue.main.async {
+                self.lastVLMDescription = simulatedVLMDescription
+                self.lastVLMConfidence = simulatedVLMConfidence
+            }
+            
+            self.detectionCallback?(imageDataToUse, detections, simulatedVLMDescription, simulatedVLMConfidence)
+            self.processingState = .sent
+            self.processingState = .idle // Immediately ready for next frame
+        }
     }
 }

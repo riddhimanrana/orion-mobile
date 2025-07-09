@@ -16,6 +16,11 @@ class SettingsManager: ObservableObject {
         didSet { UserDefaults.standard.set(reconnectDelay, forKey: "reconnectDelay") }
     }
 
+    // Processing Mode
+    @Published var processingMode: String {
+        didSet { UserDefaults.standard.set(processingMode, forKey: UserDefaultsKeys.processingMode) }
+    }
+
     // Camera & Detection
     @Published var showDetectionBoxes: Bool {
         didSet {
@@ -60,6 +65,7 @@ class SettingsManager: ObservableObject {
         self.serverHost = UserDefaults.standard.string(forKey: UserDefaultsKeys.serverHost) ?? ServerConfig.host
         self.serverPort = UserDefaults.standard.object(forKey: UserDefaultsKeys.serverPort) as? Int ?? ServerConfig.port
         self.reconnectDelay = UserDefaults.standard.double(forKey: "reconnectDelay")
+        self.processingMode = UserDefaults.standard.string(forKey: UserDefaultsKeys.processingMode) ?? "split" // Default to split
 
         // Camera & Detection
         self.showDetectionBoxes = UserDefaults.standard.bool(forKey: "showDetectionBoxes")

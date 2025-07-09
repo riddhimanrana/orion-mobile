@@ -3,6 +3,8 @@ import Combine
 
 struct StartView: View {
     @Environment(\.colorScheme) var colorScheme
+    @EnvironmentObject var objectDetector: ObjectDetector
+    @EnvironmentObject var webSocketManager: WebSocketManager
     @Binding var isCameraActive: Bool
     var onStart: (@escaping () -> Void) -> Void
 
@@ -217,11 +219,19 @@ struct StartView: View {
         withAnimation(.easeInOut(duration: 0.5)) {
             isLoading = true
         }
-        onStart { 
-            // This block is executed when loading is complete.
-            // Now we can trigger the transition animation.
-            triggerHyperspeed()
-        }
+        triggerHyperspeed()
+        objectDetector.loadModel()
+        webSocketManager.connect()
+
+        // Observe model readiness
+        var modelCancellable: AnyCancellable? = nil
+        modelCancellable = objectDetector.$isModelReady
+            .filter { $0 }
+            .sink { _ in
+                Logger.shared.log("YOLOv11n model is ready.")
+                onStart { }
+                modelCancellable?.cancel()
+            }
     }
 }
 

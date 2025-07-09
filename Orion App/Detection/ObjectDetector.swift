@@ -25,10 +25,10 @@ class ObjectDetector: ObservableObject {
     ]
     
     init() {
-        loadModel()
+        // Model loading is now triggered by the StartView
     }
     
-    private func loadModel() {
+    func loadModel() {
         modelQueue.async { [weak self] in
             guard let self = self else { return }
             

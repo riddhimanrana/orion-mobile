@@ -6,6 +6,8 @@ struct OrionApp: App {
     // Environment object to share app state
     @StateObject private var appState = AppStateManager()
     @StateObject private var cameraManager = CameraManager() // Create CameraManager instance
+    @StateObject private var objectDetector = ObjectDetector() // Create ObjectDetector instance
+    @StateObject private var webSocketManager = WebSocketManager() // Create WebSocketManager instance
     
     init() {
         // Configure app appearance
@@ -23,6 +25,8 @@ struct OrionApp: App {
             ContentView()
                 .environmentObject(appState)
                 .environmentObject(cameraManager) // Provide CameraManager to the environment
+                .environmentObject(objectDetector)
+                .environmentObject(webSocketManager)
                 // Enable/disable idle timer when streaming starts/stops (iOS17+ style)
                 .onChange(of: appState.isStreaming) { _, newStreaming in
                     UIApplication.shared.isIdleTimerDisabled = newStreaming

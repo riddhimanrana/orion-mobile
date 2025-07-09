@@ -1,15 +1,16 @@
-
 import SwiftUI
 
 struct SettingsTabView: View {
     @StateObject private var settings = SettingsManager.shared
     @EnvironmentObject var appState: AppStateManager
     @EnvironmentObject var wsManager: WebSocketManager
+    @EnvironmentObject var cameraManager: CameraManager
 
     var body: some View {
         NavigationView {
             Form {
                 serverConfigurationSection
+                processingModeSection
                 cameraAndDetectionSection
                 performanceSection
                 debugSection
@@ -95,6 +96,20 @@ struct SettingsTabView: View {
         }
     }
 
+    private var processingModeSection: some View {
+        Section(header: Label("Processing Mode", systemImage: "gearshape.2.fill")) {
+            Picker("Mode", selection: $settings.processingMode) {
+                Text("Split (VLM on device)").tag("split")
+                Text("Full (VLM + LLM on server)").tag("full")
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: settings.processingMode) { newMode in
+                wsManager.sendConfiguration(mode: newMode)
+                cameraManager.configure(for: newMode)
+            }
+        }
+    }
+
     private func updateConnection() {
         wsManager.updateServerURL(host: settings.serverHost, port: settings.serverPort)
     }
@@ -105,6 +120,7 @@ struct SettingsTabView_Previews: PreviewProvider {
         SettingsTabView()
             .environmentObject(AppStateManager())
             .environmentObject(WebSocketManager())
+            .environmentObject(CameraManager())
     }
 }
 

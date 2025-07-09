@@ -47,7 +47,7 @@ class CameraPreviewView: UIView {
     }
 
     /// Called by SwiftUI whenever `lastDetections` changes
-    func updateDetections(_ detections: [Detection]) {
+    func updateDetections(_ detections: [NetworkDetection]) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.clearOverlays()
@@ -60,7 +60,7 @@ class CameraPreviewView: UIView {
         detectionOverlays.removeAll()
     }
 
-    private func addDetectionOverlays(_ detections: [Detection]) {
+    private func addDetectionOverlays(_ detections: [NetworkDetection]) {
         guard SettingsManager.shared.showDetectionBoxes else { return }
         for det in detections {
             let overlay = DetectionOverlayView(detection: det)
@@ -93,10 +93,10 @@ class CameraPreviewView: UIView {
 
 /// A UIView subclass that draws a single detection box + label
 class DetectionOverlayView: UIView {
-    let detection: Detection?
+    let detection: NetworkDetection?
     private let label = UILabel()
 
-    init(detection: Detection) {
+    init(detection: NetworkDetection) {
         self.detection = detection
         super.init(frame: .zero)
         setupView()

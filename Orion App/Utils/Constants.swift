@@ -58,12 +58,12 @@ enum UIConfig {
 //    static let enableNetworkLogs = true
 //    static let enableProcessingLogs = true
 //    static let enablePerformanceMetrics = true
-//    
+//
 //    // Performance monitoring
 //    static let trackFrameRate = true
 //    static let trackMemoryUsage = true
 //    static let trackBatteryImpact = true
-//    
+//
 //    // Development
 //    static let showDebugOverlay = false
 //    static let simulateDetections = false
@@ -162,5 +162,6 @@ enum UserDefaultsKeys {
     static let showLabels = "showLabels"
     static let sendImages = "sendImages"
     static let maxFPS = "maxFPS"
+    static let processingMode = "processingMode"
 }
 

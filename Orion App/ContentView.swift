@@ -40,6 +40,7 @@ struct ContentView: View {
             SettingsTabView()
                 .environmentObject(appState)
                 .environmentObject(wsManager)
+                .environmentObject(cameraManager) // Pass cameraManager here
                 .tabItem {
                     Image(systemName: "gear")
                     Text("Settings")
@@ -48,11 +49,11 @@ struct ContentView: View {
         .onAppear {
             setupManagers()
         }
-        .onReceive(cameraManager.$error) { cameraError in
-            if let camError = cameraError, !camError.isEmpty {
-                self.alertMessage = "Camera Error: \(camError)"
+        .onReceive(cameraManager.$error.compactMap { $0 }) { cameraError in
+            if !cameraError.isEmpty {
+                self.alertMessage = "Camera Error: \(cameraError)"
                 self.showErrorAlert = true
-                Logger.shared.log("CameraManager published error: \(camError)", level: .error, category: .camera)
+                Logger.shared.log("CameraManager published error: \(cameraError)", level: .error, category: .camera)
             }
         }
         .alert("Application Alert", isPresented: $showErrorAlert) {
@@ -82,20 +83,48 @@ struct ContentView: View {
             }
         }
         
-        cameraManager.setDetectionCallback { imageData, detections in
-            let frameData = DetectionFrame(
-                frameId: UUID().uuidString,
-                timestamp: Date().timeIntervalSince1970,
-                imageData: imageData?.base64EncodedString(),
-                detections: detections
-            )
+        // The `onFrameProcessed` closure is no longer needed as we send frames asynchronously.
+        
+        cameraManager.setDetectionCallback { imageData, detections, vlmDescription, vlmConfidence in
+            let currentProcessingMode = SettingsManager.shared.processingMode
+            
+            let frameData: FrameDataMessage
+            
+            if currentProcessingMode == "full" {
+                // In full mode, send image data, no on-device detections or VLM
+                frameData = FrameDataMessage(
+                    frameId: UUID().uuidString,
+                    timestamp: Date().timeIntervalSince1970,
+                    imageData: imageData?.base64EncodedString(),
+                    detections: nil,
+                    deviceId: UIDevice.current.identifierForVendor?.uuidString,
+                    vlmDescription: nil,
+                    vlmConfidence: nil
+                )
+            } else { // "split" mode
+                // In split mode, send on-device detections and VLM, no image data
+                frameData = FrameDataMessage(
+                    frameId: UUID().uuidString,
+                    timestamp: Date().timeIntervalSince1970,
+                    imageData: nil,
+                    detections: detections,
+                    deviceId: UIDevice.current.identifierForVendor?.uuidString,
+                    vlmDescription: vlmDescription,
+                    vlmConfidence: vlmConfidence
+                )
+            }
             
             if wsManager.status == .connected {
                 wsManager.sendFrame(frameData)
+                // We no longer wait for an acknowledgment, allowing the next frame to be processed immediately.
+                Logger.shared.log("Sending frame \(frameData.frameId) to server.", category: .network)
+            } else {
+                Logger.shared.log("WebSocket not connected, skipping frame send.", category: .network)
             }
         }
         
         wsManager.connect()
+        wsManager.setCameraManager(cameraManager)
         
         #if DEBUG
         WebSocketManager.enableLogging = DebugConfig.enableNetworkLogs
